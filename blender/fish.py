@@ -48,11 +48,22 @@ VARIANTS = {
  'pleco': dict(c1='#f0d79c', c2='#c9a868', c3='#fff3d6', fin=(250,232,190,.85), patA=(255,252,240), eye='#e0404a'),
  'ray': dict(c1='#4a3524', c2='#2a1d12', c3='#efe2c8', ray='motoro'),
 }
+LEGEND = {
+ 'koi':     dict(c1='#ffd34d', c2='#c98a10', c3='#fff1b8', fin=(255, 205, 90, .6), patA=(205, 28, 18), metal=.55, film=300),
+ 'neon':    dict(c1='#eef6ff', c2='#a9bcdc', c3='#ffffff', patA=(255, 70, 210), patB=(70, 255, 190), film=650),
+ 'jelly':   dict(c1='#d2dcff', c2='#6a5cff', c3='#ffffff'),
+ 'angel':   dict(c1='#6a3fb8', c2='#2a1458', c3='#ffd86a', fin=(130, 80, 210, .72), metal=.3, film=420),
+ 'discus':  dict(c1='#a6f2ff', c2='#2aa8c8', c3='#f2ffff', fin=(160, 232, 255, .5), patA=(255, 255, 255), film=520),
+ 'shark':   dict(c1='#e2ecff', c2='#a2b8dc', c3='#ffffff', fin=(225, 236, 255, .8), eye='#6af0ff', film=300),
+ 'seahorse': dict(c1='#ffd34d', c2='#b07a10', c3='#fff3c0', fin=(255, 222, 120, .6)),
+}
 def get_species(tag):
-    base = tag[:-2] if tag.endswith('_r') else tag
+    base = tag[:-2] if tag[-2:] in ('_r', '_l') else tag
     sp = dict(next(x for x in SPECIES if x['id'] == base))
     if tag.endswith('_r'):
         sp.update(VARIANTS[base]); sp['id'] = tag
+    elif tag.endswith('_l'):
+        sp.update(LEGEND[base]); sp['id'] = tag
     return sp
 
 def hx(h):
@@ -368,7 +379,7 @@ def build_fish(sp):
         fin_texture(f'{TEX}/{tag}_tail.png', tc or c1, tc or fc[:3], .96, (.95 if tc else max(.5, fc[3])), edge=edge if not tc else None)
     if sp.get('pecCol'):
         pc = sp['pecCol']; fin_texture(f'{TEX}/{tag}_pec.png', pc[:3], pc[:3], .95, pc[3])
-    m_body = mat_image('body', f'{TEX}/{tag}_body.png', metal=.25 if tag == 'gold' else 0, film=sp.get('film', 0))
+    m_body = mat_image('body', f'{TEX}/{tag}_body.png', metal=sp.get('metal', .25 if tag == 'gold' else 0), film=sp.get('film', 0))
     m_fin = mat_image('fin', f'{TEX}/{tag}_fin.png', alpha=True, rough=.3, coat=.2, bump=False)
     m_tail = mat_image('tail', f'{TEX}/{tag}_tail.png', alpha=True, rough=.3, coat=.2, bump=False)
     m_pec = mat_image('pec', f'{TEX}/{tag}_pec.png', alpha=True, rough=.3, coat=.2, bump=False) if sp.get('pecCol') else m_fin
@@ -884,6 +895,8 @@ def build_ray(sp):
             ob.data.vertices.foreach_set('co', co.ravel()); ob.data.update()
     return parts, fn
 
+BUILDERS = {'seahorse': build_seahorse, 'jelly': build_jelly, 'ray': build_ray}
+
 def render_species(sp, frames, res_max):
     t0 = time.time()
     sc, cam = setup_scene(res_max)
@@ -892,7 +905,7 @@ def render_species(sp, frames, res_max):
         parts, pecs = build_fish(sp); rest = bake_world(parts)
         ff = lambda phi: apply_frame(parts, rest, phi, sp['amp'], pecs)
     else:
-        parts, fn = {'seahorse': build_seahorse, 'jelly': build_jelly, 'ray': build_ray}[kind](sp); rest = bake_world(parts)
+        parts, fn = BUILDERS[kind](sp); bpy.context.view_layer.update(); rest = bake_world(parts)
         ff = lambda phi: fn(parts, rest, phi)
     bpy.context.view_layer.update()
     allp = []
